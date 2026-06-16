@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 
-const ADMIN_EMAIL = "guitarush@naver.com";
-
 type Contact = {
   id: number;
   name: string;
@@ -19,12 +17,23 @@ export default function AdminPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
 
   async function checkAdmin() {
-    const { data } = await supabase.auth.getUser();
-    const userEmail = data.user?.email;
+    const { data: userData } = await supabase.auth.getUser();
+    const userEmail = userData.user?.email;
 
-    if (userEmail === ADMIN_EMAIL) {
+    if (!userEmail) {
+      setLoading(false);
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("email", userEmail)
+      .single();
+
+    if (profile?.role === "admin") {
       setIsAdmin(true);
-      getContacts();
+      await getContacts();
     }
 
     setLoading(false);
@@ -53,7 +62,7 @@ export default function AdminPage() {
         <section className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow">
           <h1 className="mb-4 text-2xl font-bold">접근 권한 없음</h1>
           <p className="text-gray-600">
-            관리자 계정으로 로그인해야 접근할 수 있습니다.
+            관리자 권한이 있는 계정만 접근할 수 있습니다.
           </p>
           <a
             href="/login"
