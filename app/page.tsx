@@ -32,12 +32,14 @@ export default function Home() {
           <a href="/board">게시판</a>
           <a href="/contact">문의하기</a>
           <a href="/admin">관리자</a>
+          <a href="/estimate">견적 작성</a>
+          <a href="/estimates">견적 목록</a>
         </nav>
       </header>
 
       <section className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
         <h2 className="mb-6 text-5xl font-extrabold">
-          AI로 뭔가를 해보자
+          김용관 바보똥개멍청이
         </h2>
 
         {email ? (
