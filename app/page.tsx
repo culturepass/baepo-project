@@ -24,7 +24,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50">
       <header className="flex items-center justify-between border-b bg-white px-8 py-5">
-        <h1 className="text-2xl font-bold">Chat GPT, Node.js, Vercel, Supabase, Github 야 나한테 힘을줘</h1>
+        <h1 className="text-2xl font-bold">Chat GPT, Node.js, Vercel, Supabase, Github</h1>
 
         <nav className="flex gap-5 text-sm font-semibold">
           <a href="/signup">회원가입</a>
@@ -39,7 +39,7 @@ export default function Home() {
 
       <section className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
         <h2 className="mb-6 text-5xl font-extrabold">
-          김용관 바보똥개멍청이
+          실제 배포 프로젝트
         </h2>
 
         {email ? (
