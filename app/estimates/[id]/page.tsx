@@ -30,17 +30,20 @@ type EstimateNote = {
 
 export default function EstimateDetailPage() {
   const params = useParams();
+  const estimateId = Number(params.id);
+
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [notes, setNotes] = useState<EstimateNote[]>([]);
   const [memo, setMemo] = useState("");
   const [loading, setLoading] = useState(true);
   const [memoLoading, setMemoLoading] = useState(false);
+  const [memoError, setMemoError] = useState("");
 
   async function getEstimate() {
     const { data, error } = await supabase
       .from("estimates")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", estimateId)
       .single();
 
     if (error) {
@@ -57,14 +60,18 @@ export default function EstimateDetailPage() {
     const { data, error } = await supabase
       .from("estimate_notes")
       .select("*")
-      .eq("estimate_id", params.id)
+      .eq("estimate_id", estimateId)
       .order("id", { ascending: false });
 
     if (error) {
-      alert("메모 불러오기 실패: " + error.message);
+      setMemoError(
+        "메모 테이블 또는 권한 설정이 필요합니다. Supabase에서 estimate_notes 테이블을 생성해주세요."
+      );
+      setNotes([]);
       return;
     }
 
+    setMemoError("");
     setNotes(data || []);
   }
 
@@ -78,7 +85,7 @@ export default function EstimateDetailPage() {
 
     const { error } = await supabase.from("estimate_notes").insert([
       {
-        estimate_id: Number(params.id),
+        estimate_id: estimateId,
         memo,
       },
     ]);
@@ -96,14 +103,17 @@ export default function EstimateDetailPage() {
 
   async function copyReply(message: string | null) {
     if (!message) return;
+
     await navigator.clipboard.writeText(message);
     alert("회신 초안이 복사되었습니다.");
   }
 
   useEffect(() => {
+    if (!estimateId) return;
+
     getEstimate();
     getNotes();
-  }, []);
+  }, [estimateId]);
 
   if (loading) {
     return (
@@ -221,6 +231,12 @@ export default function EstimateDetailPage() {
 
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-gray-900">고객 메모</h2>
+
+                {memoError && (
+                  <div className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm leading-6 text-yellow-800">
+                    {memoError}
+                  </div>
+                )}
 
                 <textarea
                   className="mt-4 min-h-32 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none focus:border-blue-500"

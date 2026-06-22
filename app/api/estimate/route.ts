@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 function fallbackEstimate(inquiry: string) {
   const text = inquiry.toLowerCase();
@@ -71,8 +71,7 @@ export async function POST(request: Request) {
   try {
     const { inquiry } = await request.json();
 
-    // OpenAI 키가 없으면 fallback
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return Response.json({
         result: JSON.stringify(fallbackEstimate(inquiry)),
         source: "fallback",
@@ -80,16 +79,18 @@ export async function POST(request: Request) {
     }
 
     try {
-      const client = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
+      const genAI = new GoogleGenerativeAI(
+        process.env.GEMINI_API_KEY
+      );
+
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
       });
 
-      const response = await client.responses.create({
-        model: "gpt-5-mini",
-        input: `
-너는 20년 경력의 웹에이전시 견적 컨설턴트다.
+      const prompt = `
+너는 20년 경력의 웹에이전시 PM이다.
 
-반드시 JSON만 반환해라.
+반드시 JSON만 반환한다.
 
 고객 문의:
 ${inquiry}
@@ -101,15 +102,18 @@ ${inquiry}
   "estimated_price":"",
   "reply_message":""
 }
-`,
-      });
+`;
+
+      const result = await model.generateContent(prompt);
+
+      const response = result.response.text();
 
       return Response.json({
-        result: response.output_text,
-        source: "openai",
+        result: response,
+        source: "gemini",
       });
     } catch (error) {
-      console.log("OpenAI 실패 → Fallback 사용");
+      console.log("Gemini 실패 → Fallback 사용");
 
       return Response.json({
         result: JSON.stringify(fallbackEstimate(inquiry)),
