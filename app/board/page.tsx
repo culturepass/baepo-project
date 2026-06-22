@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AppLayout from "../../components/AppLayout";
 import { supabase } from "../../lib/supabase";
 
 type Post = {
@@ -28,10 +29,15 @@ export default function BoardPage() {
   }
 
   async function getPosts() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("posts")
       .select("*")
       .order("id", { ascending: false });
+
+    if (error) {
+      alert("게시글 불러오기 실패: " + error.message);
+      return;
+    }
 
     setPosts(data || []);
   }
@@ -46,13 +52,23 @@ export default function BoardPage() {
       return;
     }
 
-    await supabase.from("posts").insert([
+    if (!title.trim() || !content.trim()) {
+      alert("제목과 내용을 모두 입력하세요.");
+      return;
+    }
+
+    const { error } = await supabase.from("posts").insert([
       {
         title,
         content,
         user_email: userEmail,
       },
     ]);
+
+    if (error) {
+      alert("게시글 등록 실패: " + error.message);
+      return;
+    }
 
     alert("게시글 등록 완료");
     setTitle("");
@@ -67,6 +83,11 @@ export default function BoardPage() {
   }
 
   async function updatePost(id: number) {
+    if (!editTitle.trim() || !editContent.trim()) {
+      alert("제목과 내용을 모두 입력하세요.");
+      return;
+    }
+
     const { error } = await supabase
       .from("posts")
       .update({
@@ -108,97 +129,160 @@ export default function BoardPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-12">
-      <section className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow">
-        <h1 className="mb-6 text-3xl font-bold">게시판</h1>
+    <AppLayout>
+      <section className="p-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8">
+            <p className="mb-2 text-sm font-bold text-blue-600">
+              Board
+            </p>
 
-        <div className="mb-8 grid gap-4">
-          <input
-            className="rounded-xl border px-4 py-3"
-            placeholder="제목"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+            <h1 className="text-3xl font-bold text-gray-900">
+              게시판
+            </h1>
 
-          <textarea
-            className="min-h-32 rounded-xl border px-4 py-3"
-            placeholder="내용"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
+            <p className="mt-2 text-gray-600">
+              내부 공지, 자료, 테스트 게시글을 작성하고 관리합니다.
+            </p>
+          </div>
 
-          <button
-            onClick={createPost}
-            className="rounded-xl bg-blue-600 py-3 font-bold text-white"
-          >
-            게시글 등록
-          </button>
-        </div>
+          <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">
+                게시글 작성
+              </h2>
 
-        <div className="grid gap-4">
-          {posts.map((post) => (
-            <article key={post.id} className="rounded-xl border p-5">
-              {editId === post.id ? (
-                <div className="grid gap-3">
-                  <input
-                    className="rounded-xl border px-4 py-3"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                  />
+              <p className="mt-2 text-sm text-gray-500">
+                로그인한 사용자만 게시글을 등록할 수 있습니다.
+              </p>
 
-                  <textarea
-                    className="min-h-28 rounded-xl border px-4 py-3"
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                  />
+              <div className="mt-6 grid gap-4">
+                <input
+                  className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                  placeholder="제목"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => updatePost(post.id)}
-                      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white"
-                    >
-                      저장
-                    </button>
+                <textarea
+                  className="min-h-40 resize-none rounded-xl border border-gray-200 px-4 py-3 leading-7 outline-none focus:border-blue-500"
+                  placeholder="내용"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                />
 
-                    <button
-                      onClick={() => setEditId(null)}
-                      className="rounded-lg bg-gray-500 px-4 py-2 text-sm font-bold text-white"
-                    >
-                      취소
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <h2 className="text-xl font-bold">{post.title}</h2>
-                  <p className="mt-2 text-gray-600">{post.content}</p>
-                  <p className="mt-4 text-sm text-gray-400">
-                    작성자: {post.user_email || "알 수 없음"}
+                <button
+                  onClick={createPost}
+                  className="rounded-xl bg-blue-600 py-3 font-bold text-white hover:bg-blue-700"
+                >
+                  게시글 등록
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    게시글 목록
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    총 {posts.length}개의 게시글
                   </p>
+                </div>
+              </div>
 
-                  {currentEmail === post.user_email && (
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={() => startEdit(post)}
-                        className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-bold text-white"
-                      >
-                        수정
-                      </button>
+              <div className="grid gap-4">
+                {posts.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-gray-200 p-10 text-center text-sm text-gray-400">
+                    등록된 게시글이 없습니다.
+                  </div>
+                ) : (
+                  posts.map((post) => (
+                    <article
+                      key={post.id}
+                      className="rounded-2xl border border-gray-100 p-5 transition hover:bg-gray-50"
+                    >
+                      {editId === post.id ? (
+                        <div className="grid gap-3">
+                          <input
+                            className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                          />
 
-                      <button
-                        onClick={() => deletePost(post.id)}
-                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </article>
-          ))}
+                          <textarea
+                            className="min-h-32 resize-none rounded-xl border border-gray-200 px-4 py-3 leading-7 outline-none focus:border-blue-500"
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                          />
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => updatePost(post.id)}
+                              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+                            >
+                              저장
+                            </button>
+
+                            <button
+                              onClick={() => setEditId(null)}
+                              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h3 className="text-lg font-bold text-gray-900">
+                                {post.title}
+                              </h3>
+
+                              <p className="mt-1 text-xs text-gray-400">
+                                작성자: {post.user_email || "알 수 없음"}
+                              </p>
+                            </div>
+
+                            <p className="text-xs text-gray-400">
+                              {new Date(post.created_at).toLocaleString()}
+                            </p>
+                          </div>
+
+                          <p className="mt-4 whitespace-pre-wrap rounded-xl bg-gray-50 p-4 text-sm leading-7 text-gray-700">
+                            {post.content}
+                          </p>
+
+                          {currentEmail === post.user_email && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <button
+                                onClick={() => startEdit(post)}
+                                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white hover:bg-black"
+                              >
+                                수정
+                              </button>
+
+                              <button
+                                onClick={() => deletePost(post.id)}
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </article>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
-    </main>
+    </AppLayout>
   );
 }

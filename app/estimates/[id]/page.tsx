@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import AppLayout from "../../../components/AppLayout";
+import StatusBadge from "../../../components/StatusBadge";
 
 type Estimate = {
   id: number;
@@ -19,99 +21,290 @@ type Estimate = {
   created_at: string;
 };
 
+type EstimateNote = {
+  id: number;
+  estimate_id: number;
+  memo: string;
+  created_at: string;
+};
+
 export default function EstimateDetailPage() {
   const params = useParams();
-  const id = params.id as string;
-
   const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [notes, setNotes] = useState<EstimateNote[]>([]);
+  const [memo, setMemo] = useState("");
   const [loading, setLoading] = useState(true);
+  const [memoLoading, setMemoLoading] = useState(false);
 
-  useEffect(() => {
-    async function fetchEstimate() {
-      const { data, error } = await supabase
-        .from("estimates")
-        .select("*")
-        .eq("id", id)
-        .single();
+  async function getEstimate() {
+    const { data, error } = await supabase
+      .from("estimates")
+      .select("*")
+      .eq("id", params.id)
+      .single();
 
-      if (error) {
-        console.error("견적 상세 조회 오류:", error.message);
-      }
-
-      setEstimate(data);
+    if (error) {
+      alert("견적 상세 불러오기 실패: " + error.message);
       setLoading(false);
+      return;
     }
 
-    if (id) fetchEstimate();
-  }, [id]);
+    setEstimate(data);
+    setLoading(false);
+  }
+
+  async function getNotes() {
+    const { data, error } = await supabase
+      .from("estimate_notes")
+      .select("*")
+      .eq("estimate_id", params.id)
+      .order("id", { ascending: false });
+
+    if (error) {
+      alert("메모 불러오기 실패: " + error.message);
+      return;
+    }
+
+    setNotes(data || []);
+  }
+
+  async function saveMemo() {
+    if (!memo.trim()) {
+      alert("메모 내용을 입력하세요.");
+      return;
+    }
+
+    setMemoLoading(true);
+
+    const { error } = await supabase.from("estimate_notes").insert([
+      {
+        estimate_id: Number(params.id),
+        memo,
+      },
+    ]);
+
+    if (error) {
+      alert("메모 저장 실패: " + error.message);
+      setMemoLoading(false);
+      return;
+    }
+
+    setMemo("");
+    await getNotes();
+    setMemoLoading(false);
+  }
+
+  async function copyReply(message: string | null) {
+    if (!message) return;
+    await navigator.clipboard.writeText(message);
+    alert("회신 초안이 복사되었습니다.");
+  }
+
+  useEffect(() => {
+    getEstimate();
+    getNotes();
+  }, []);
 
   if (loading) {
-    return <main className="p-8">견적 정보를 불러오는 중...</main>;
+    return (
+      <AppLayout>
+        <section className="p-8">
+          <div className="mx-auto max-w-6xl rounded-2xl border border-gray-100 bg-white p-10 text-center text-gray-500 shadow-sm">
+            견적 상세 정보를 불러오는 중입니다.
+          </div>
+        </section>
+      </AppLayout>
+    );
   }
 
   if (!estimate) {
     return (
-      <main className="p-8">
-        <p className="mb-4">견적 정보를 찾을 수 없습니다.</p>
-        <Link href="/estimates" className="text-blue-600 underline">
-          견적 목록으로 돌아가기
-        </Link>
-      </main>
+      <AppLayout>
+        <section className="p-8">
+          <div className="mx-auto max-w-6xl rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+            <h1 className="text-xl font-bold text-gray-900">
+              견적 정보를 찾을 수 없습니다.
+            </h1>
+
+            <Link
+              href="/estimates"
+              className="mt-6 inline-flex rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white"
+            >
+              목록으로 돌아가기
+            </Link>
+          </div>
+        </section>
+      </AppLayout>
     );
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-8">
-      <Link href="/estimates" className="text-sm text-blue-600 underline">
-        ← 견적 목록으로
-      </Link>
+    <AppLayout>
+      <section className="p-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="mb-3 flex items-center gap-3">
+                <Link
+                  href="/estimates"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100"
+                >
+                  ← 목록
+                </Link>
 
-      <section className="mt-6 bg-white border rounded-xl p-6 shadow-sm">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">견적 상세</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              등록일: {new Date(estimate.created_at).toLocaleString("ko-KR")}
-            </p>
+                <StatusBadge status={estimate.status} />
+              </div>
+
+              <p className="mb-2 text-sm font-bold text-blue-600">
+                Estimate Detail
+              </p>
+
+              <h1 className="text-3xl font-bold text-gray-900">
+                {estimate.customer_name || "고객명 없음"}
+              </h1>
+
+              <p className="mt-2 text-gray-500">
+                {estimate.customer_contact || "연락처 없음"}
+              </p>
+            </div>
+
+            <div className="text-left md:text-right">
+              <p className="text-sm text-gray-400">견적 번호 #{estimate.id}</p>
+              <p className="mt-1 text-sm text-gray-400">
+                {new Date(estimate.created_at).toLocaleString()}
+              </p>
+            </div>
           </div>
 
-          <span className="px-3 py-1 rounded-full bg-gray-100 text-sm">
-            {estimate.status || "신규"}
-          </span>
-        </div>
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-sm font-bold text-gray-400">예상 견적</p>
+              <p className="mt-3 text-2xl font-bold text-blue-700">
+                {estimate.estimated_price || "-"}
+              </p>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Info label="고객명" value={estimate.customer_name} />
-          <Info label="연락처" value={estimate.customer_contact} />
-          <Info label="예상 견적" value={estimate.estimated_price} />
-          <Info label="페이지 구성" value={estimate.pages} />
-        </div>
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-sm font-bold text-gray-400">필요 페이지</p>
+              <p className="mt-3 text-sm leading-6 text-gray-700">
+                {estimate.pages || "-"}
+              </p>
+            </div>
 
-        <Block title="문의 내용" content={estimate.inquiry} />
-        <Block title="AI 요약" content={estimate.summary} />
-        <Block title="필요 기능" content={estimate.features} />
-        <Block title="회신 초안" content={estimate.reply_message} />
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-sm font-bold text-gray-400">필요 기능</p>
+              <p className="mt-3 text-sm leading-6 text-gray-700">
+                {estimate.features || "-"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900">원문 문의</h2>
+
+                <p className="mt-4 whitespace-pre-wrap rounded-xl bg-gray-50 p-5 text-sm leading-7 text-gray-700">
+                  {estimate.inquiry || "-"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900">
+                  AI 분석 요약
+                </h2>
+
+                <p className="mt-4 whitespace-pre-wrap rounded-xl bg-blue-50 p-5 text-sm leading-7 text-gray-700">
+                  {estimate.summary || "-"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900">고객 메모</h2>
+
+                <textarea
+                  className="mt-4 min-h-32 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none focus:border-blue-500"
+                  placeholder="상담 내용, 확인 사항, 다음 연락 일정 등을 입력하세요."
+                  value={memo}
+                  onChange={(e) => setMemo(e.target.value)}
+                />
+
+                <button
+                  onClick={saveMemo}
+                  disabled={memoLoading}
+                  className="mt-3 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {memoLoading ? "저장 중..." : "메모 저장"}
+                </button>
+
+                <div className="mt-6 space-y-3">
+                  {notes.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-400">
+                      등록된 메모가 없습니다.
+                    </div>
+                  ) : (
+                    notes.map((note) => (
+                      <div
+                        key={note.id}
+                        className="rounded-xl border border-gray-100 bg-gray-50 p-4"
+                      >
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700">
+                          {note.memo}
+                        </p>
+
+                        <p className="mt-3 text-xs text-gray-400">
+                          {new Date(note.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900">
+                  고객 회신 초안
+                </h2>
+
+                <p className="mt-4 whitespace-pre-wrap rounded-xl bg-gray-50 p-5 text-sm leading-7 text-gray-700">
+                  {estimate.reply_message || "-"}
+                </p>
+
+                <button
+                  onClick={() => copyReply(estimate.reply_message)}
+                  className="mt-5 w-full rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-black"
+                >
+                  회신 초안 복사
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900">다음 작업</h2>
+
+                <div className="mt-4 space-y-3 text-sm text-gray-600">
+                  <div className="rounded-xl border border-gray-100 p-4">
+                    고객 요구사항 확인
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 p-4">
+                    상세 범위 산정
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 p-4">
+                    견적서 PDF 생성
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 p-4">
+                    이메일 발송
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
-    </main>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="border rounded-lg p-4 bg-gray-50">
-      <p className="text-sm text-gray-500 mb-1">{label}</p>
-      <p className="font-medium whitespace-pre-wrap">{value || "-"}</p>
-    </div>
-  );
-}
-
-function Block({ title, content }: { title: string; content: string | null }) {
-  return (
-    <div className="mb-6">
-      <h2 className="font-semibold mb-2">{title}</h2>
-      <div className="border rounded-lg p-4 bg-gray-50 text-sm leading-6 whitespace-pre-wrap">
-        {content || "-"}
-      </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AppLayout from "../../components/AppLayout";
+import DashboardCard from "../../components/DashboardCard";
+import EstimateCard from "../../components/EstimateCard";
 import { supabase } from "../../lib/supabase";
 
 type Estimate = {
   id: number;
   customer_name: string | null;
-  customer_contact: string | null;
+  customer_contact: string |null;
   inquiry: string;
   summary: string | null;
   pages: string | null;
@@ -71,13 +73,14 @@ export default function EstimatesPage() {
       return;
     }
 
-    alert("상태가 변경되었습니다.");
     getEstimates();
   }
 
   async function copyReply(message: string | null) {
     if (!message) return;
+
     await navigator.clipboard.writeText(message);
+
     alert("회신 초안이 복사되었습니다.");
   }
 
@@ -86,171 +89,130 @@ export default function EstimatesPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-10">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">견적 CRM 대시보드</h1>
-            <p className="mt-2 text-gray-600">
-              고객 문의, 예상 견적, 회신 초안을 한 곳에서 관리합니다.
-            </p>
-          </div>
+    <AppLayout>
+      <section className="p-8">
+        <div className="mx-auto max-w-7xl">
 
-          <a
-            href="/estimate"
-            className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white"
-          >
-            새 견적 작성
-          </a>
-        </div>
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="mb-2 text-sm font-bold text-blue-600">
+                Estimate CRM
+              </p>
 
-        <div className="mb-8 grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">총 견적</p>
-            <p className="mt-2 text-3xl font-bold">{estimates.length}</p>
-          </div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                견적 CRM 대시보드
+              </h1>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">신규</p>
-            <p className="mt-2 text-3xl font-bold">
-              {estimates.filter((item) => item.status === "신규").length}
-            </p>
-          </div>
+              <p className="mt-2 text-gray-600">
+                고객 문의, 예상 견적, 회신 초안을 한 곳에서 관리합니다.
+              </p>
+            </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">검토중</p>
-            <p className="mt-2 text-3xl font-bold">
-              {estimates.filter((item) => item.status === "검토중").length}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">견적발송</p>
-            <p className="mt-2 text-3xl font-bold">
-              {estimates.filter((item) => item.status === "견적발송").length}
-            </p>
-          </div>
-        </div>
-
-        <div className="mb-8 grid gap-4 rounded-2xl bg-white p-5 shadow md:grid-cols-2">
-          <input
-            className="rounded-xl border px-4 py-3"
-            placeholder="고객명, 연락처, 문의 내용 검색"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-
-          <select
-            className="rounded-xl border px-4 py-3"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="전체">전체 상태</option>
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid gap-6">
-          {filteredEstimates.map((item) => (
-            <article
-              key={item.id}
-              className="rounded-2xl border bg-white p-6 shadow-sm"
+            <a
+              href="/estimate"
+              className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700"
             >
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div>
-                  <select
-                    className="mb-3 rounded-full border bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700"
-                    value={item.status || "신규"}
-                    onChange={(e) => updateStatus(item.id, e.target.value)}
+              새 견적 작성
+            </a>
+          </div>
+
+          <div className="mb-8 grid gap-4 md:grid-cols-4">
+            <DashboardCard
+              title="총 견적"
+              value={estimates.length}
+              description="누적 견적 요청"
+            />
+
+            <DashboardCard
+              title="신규"
+              value={
+                estimates.filter(
+                  (item) => item.status === "신규"
+                ).length
+              }
+              description="새로 접수된 문의"
+            />
+
+            <DashboardCard
+              title="검토중"
+              value={
+                estimates.filter(
+                  (item) => item.status === "검토중"
+                ).length
+              }
+              description="내부 검토 진행"
+            />
+
+            <DashboardCard
+              title="견적발송"
+              value={
+                estimates.filter(
+                  (item) => item.status === "견적발송"
+                ).length
+              }
+              description="고객 회신 완료"
+            />
+          </div>
+
+          <div className="mb-8 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="grid gap-4 md:grid-cols-2">
+              <input
+                className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                placeholder="고객명, 연락처, 문의 내용 검색"
+                value={searchText}
+                onChange={(e) =>
+                  setSearchText(e.target.value)
+                }
+              />
+
+              <select
+                className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value)
+                }
+              >
+                <option value="전체">
+                  전체 상태
+                </option>
+
+                {STATUS_OPTIONS.map((status) => (
+                  <option
+                    key={status}
+                    value={status}
                   >
-                    {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-                  <h2 className="text-2xl font-bold">
-                    {item.customer_name || "고객명 없음"}
-                  </h2>
+          <div className="grid gap-5">
+            {filteredEstimates.length === 0 ? (
+              <div className="rounded-2xl border border-dashed bg-white p-16 text-center shadow-sm">
+                <h2 className="text-xl font-bold text-gray-700">
+                  조건에 맞는 견적이 없습니다.
+                </h2>
 
-                  <p className="mt-1 text-sm text-gray-500">
-                    {item.customer_contact || "연락처 없음"}
-                  </p>
-                </div>
-
-                <p className="text-sm text-gray-400">
-                  {new Date(item.created_at).toLocaleString()}
+                <p className="mt-2 text-gray-500">
+                  새로운 견적을 등록해보세요.
                 </p>
               </div>
-
-              <div className="mb-5 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
-                <b>원문 문의</b>
-                <p className="mt-2 whitespace-pre-wrap">{item.inquiry}</p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border p-4">
-                  <p className="mb-2 text-sm font-bold text-gray-500">요약</p>
-                  <p>{item.summary || "-"}</p>
-                </div>
-
-                <div className="rounded-xl border p-4">
-                  <p className="mb-2 text-sm font-bold text-gray-500">
-                    예상 견적
-                  </p>
-                  <p className="font-bold text-blue-700">
-                    {item.estimated_price || "-"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border p-4">
-                  <p className="mb-2 text-sm font-bold text-gray-500">
-                    필요 페이지
-                  </p>
-                  <p>{item.pages || "-"}</p>
-                </div>
-
-                <div className="rounded-xl border p-4">
-                  <p className="mb-2 text-sm font-bold text-gray-500">
-                    필요 기능
-                  </p>
-                  <p>{item.features || "-"}</p>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-xl border p-4">
-                <p className="mb-2 text-sm font-bold text-gray-500">
-                  고객 회신 초안
-                </p>
-                <p className="whitespace-pre-wrap text-gray-700">
-                  {item.reply_message || "-"}
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link
-                    href={`/estimates/${item.id}`}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold hover:bg-gray-100"
-                  >
-                    상세보기
-                  </Link>
-
-                  <button
-                    onClick={() => copyReply(item.reply_message)}
-                    className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white"
-                  >
-                    회신 초안 복사
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+            ) : (
+              filteredEstimates.map((item) => (
+                <EstimateCard
+                  key={item.id}
+                  item={item}
+                  statusOptions={STATUS_OPTIONS}
+                  onStatusChange={updateStatus}
+                  onCopyReply={copyReply}
+                />
+              ))
+            )}
+          </div>
         </div>
       </section>
-    </main>
+    </AppLayout>
   );
 }
